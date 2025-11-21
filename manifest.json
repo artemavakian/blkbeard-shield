@@ -3,7 +3,7 @@
   "name": "Shield: Spam & Scam Tab Auto-Closer",
   "version": "1.0.0",
   "description": "Automatically closes tabs that were likely opened by fake clicks and match spam or scam patterns.",
-  "permissions": ["tabs", "scripting", "activeTab"],
+  "permissions": ["tabs", "scripting", "activeTab", "storage", "webNavigation"],
   "host_permissions": [
     "<all_urls>",
     "https://blkbeard.ai/*"
@@ -19,6 +19,14 @@
       "run_at": "document_idle"
     }
   ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

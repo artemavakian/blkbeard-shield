@@ -153,7 +153,21 @@ export const GENERIC_SCAM_KEYWORDS = [
   "pushnotifications",
   "notification-alert",
   "survey-reward",
-  "exclusive-offer"
+  "exclusive-offer",
+
+  // Deal / offer language
+  "great-deal",
+  "greatdeal",
+  "best-deal",
+  "bestdeal",
+  "good-deal",
+  "gooddeal",
+  "hot-deal",
+  "hotdeal",
+  "special-deal",
+  "specialdeal",
+  "amazing-deal",
+  "amazingdeal"
 ];
 
 export const AGE_CONSENT_KEYWORDS = [

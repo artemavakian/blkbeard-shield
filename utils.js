@@ -26,7 +26,11 @@ const AFFILIATE_PARAM_SUBSTRINGS = [
   "irmp=",
   "subid=",
   "subid1=",
-  "partnerpropertyid="
+  "partnerpropertyid=",
+
+  // Click-tracking parameters commonly used by redirect landers
+  "click_id=",
+  "clickid="
 ];
 
 function normalizeToLower(value) {

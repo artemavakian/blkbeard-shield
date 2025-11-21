@@ -1,11 +1,13 @@
 // Content script:
 // - Tracks real user gestures and reports them to the background service worker.
+// - Detects suspicious full-screen overlays that may steal clicks.
 // - Extracts lightweight page content (URL, title, meta description, first ~500 chars of text)
 //   when requested by the background script.
 
 const GESTURE_EVENTS = ["mousedown", "click", "keydown"];
 const GESTURE_THROTTLE_MS = 100;
 let lastGestureSentAt = 0;
+let overlayObserverStarted = false;
 
 function sendUserGesture() {
   const now = Date.now();
@@ -27,6 +29,97 @@ function sendUserGesture() {
 function attachGestureListeners() {
   GESTURE_EVENTS.forEach((eventName) => {
     window.addEventListener(eventName, sendUserGesture, true);
+  });
+}
+
+function computeOverlayScore(element) {
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+    return 0;
+  }
+
+  let score = 0;
+
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  // Heuristic 1: extreme z-index values.
+  let zIndexScore = 0;
+  const zIndexValue = parseInt(style.zIndex || "0", 10);
+  if (!Number.isNaN(zIndexValue)) {
+    if (zIndexValue >= 2147483647 || zIndexValue > 999999) {
+      zIndexScore = 2;
+    }
+  }
+  score += zIndexScore;
+
+  // Heuristic 2: full-screen fixed/absolute overlay.
+  const isFixedOrAbsolute =
+    style.position === "fixed" || style.position === "absolute";
+
+  const coversWidth = vw > 0 && rect.width >= vw * 0.95;
+  const coversHeight = vh > 0 && rect.height >= vh * 0.95;
+  const nearTopLeft = rect.top <= 5 && rect.left <= 5;
+
+  let fullScreenScore = 0;
+  let isFullScreenOverlay = false;
+  if (isFixedOrAbsolute && coversWidth && coversHeight && nearTopLeft) {
+    isFullScreenOverlay = true;
+    fullScreenScore = 2;
+  }
+  score += fullScreenScore;
+
+  // Heuristic 3: injected as last <body> child post-load.
+  let lastChildScore = 0;
+  if (
+    document.readyState === "complete" &&
+    element.parentElement === document.body &&
+    element === document.body.lastElementChild
+  ) {
+    lastChildScore = 1;
+  }
+  score += lastChildScore;
+
+  // Heuristic 4: full-screen overlay that intercepts clicks.
+  let pointerEventsScore = 0;
+  if (isFullScreenOverlay && style.pointerEvents !== "none") {
+    pointerEventsScore = 1;
+  }
+  score += pointerEventsScore;
+
+  return score;
+}
+
+function startOverlayObserver() {
+  if (overlayObserverStarted) return;
+  overlayObserverStarted = true;
+
+  if (!document.body) return;
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (!(node instanceof Element)) return;
+
+        const score = computeOverlayScore(node);
+        if (score >= 3) {
+          try {
+            chrome.runtime.sendMessage({
+              type: "overlay-signal",
+              score
+            });
+          } catch (e) {
+            // Ignore failures.
+          }
+        }
+      });
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
   });
 }
 
@@ -93,5 +186,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Initialize immediately on script load.
 attachGestureListeners();
+startOverlayObserver();
 
 
