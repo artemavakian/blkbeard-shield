@@ -14,6 +14,9 @@ let windowFocused = true;
 // Track whether the extension is enabled or disabled
 let extensionEnabled = true;
 
+// Track a stable installation ID for this browser profile.
+let installationId = null;
+
 // Track tabs that were suspicious at creation time (Condition 1 true).
 // Map<tabId, { condition1: boolean, condition2: boolean, condition3: boolean, scanRequested: boolean, aiRequested: boolean }>
 const suspiciousTabs = new Map();
@@ -26,10 +29,75 @@ const overlayScores = new Map();
 // Map<tabId, boolean>
 const trustedTypedNavigation = new Map();
 
-// Initialize enabled state from storage
-chrome.storage.local.get({ enabled: true }, (result) => {
-  extensionEnabled = result.enabled;
-});
+// Track recent clicks on very suspicious, nearly transparent full-screen overlays.
+// Map<tabId, number> (timestamp of last hard overlay click)
+const hardOverlayClicks = new Map();
+
+// Track last known URL per tab for same-site checks.
+// Map<tabId, string>
+const latestTabUrls = new Map();
+
+// Track tabs that should never be auto-closed because they are same-site
+// navigations from their opener (e.g., futbin internal links).
+// Map<tabId, boolean>
+const sameSiteAllowedTabs = new Map();
+
+// Track domains explicitly marked as spam by the user via the popup.
+const blockedDomains = new Set();
+
+// Track domains explicitly marked as safe (false positives).
+const safeDomains = new Set();
+
+// Remember the most recently auto-closed tab for "False Positive" reopen.
+let lastClosedTab = null;
+
+// Initialize enabled state, installation ID, and domain lists from storage.
+chrome.storage.local.get(
+  { enabled: true, installationId: null, blockedDomains: [], safeDomains: [] },
+  (result) => {
+    extensionEnabled = result.enabled;
+
+    if (result.installationId) {
+      installationId = result.installationId;
+    } else {
+      try {
+        const id =
+          (crypto && crypto.randomUUID && crypto.randomUUID()) ||
+          `${Math.random().toString(36).slice(2)}-${Date.now()}`;
+        installationId = id;
+        chrome.storage.local.set({ installationId: id });
+      } catch {
+        const fallbackId = `${Math.random().toString(36).slice(2)}-${Date.now()}`;
+        installationId = fallbackId;
+        chrome.storage.local.set({ installationId: fallbackId });
+      }
+    }
+
+    if (Array.isArray(result.blockedDomains)) {
+      result.blockedDomains.forEach((d) => {
+        if (d && typeof d === "string") {
+          blockedDomains.add(d.toLowerCase());
+        }
+      });
+    }
+
+    if (Array.isArray(result.safeDomains)) {
+      result.safeDomains.forEach((d) => {
+        if (d && typeof d === "string") {
+          safeDomains.add(d.toLowerCase());
+        }
+      });
+    }
+  }
+);
+
+function persistBlockedDomains() {
+  chrome.storage.local.set({ blockedDomains: Array.from(blockedDomains) });
+}
+
+function persistSafeDomains() {
+  chrome.storage.local.set({ safeDomains: Array.from(safeDomains) });
+}
 
 function isTrustedTypedTab(tabId) {
   return trustedTypedNavigation.get(tabId) === true;
@@ -51,6 +119,79 @@ function isSearchEngineUrl(url) {
   } catch {
     return false;
   }
+}
+
+function getHostname(url) {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function areSameSiteUrls(urlA, urlB) {
+  const hostA = getHostname(urlA);
+  const hostB = getHostname(urlB);
+  if (!hostA || !hostB) return false;
+
+  if (hostA === hostB) return true;
+
+  // Treat methstreams and crackstreams as the same logical site, even across
+  // different subdomains or TLDs (e.g., methstreams.com, crackstreams.is, etc.)
+  const isStreamsHost = (host) =>
+    host.includes("methstreams") || host.includes("crackstreams");
+
+  if (isStreamsHost(hostA) && isStreamsHost(hostB)) {
+    return true;
+  }
+
+  return false;
+}
+
+async function reportSpamToBackend(payload) {
+  try {
+    await fetch("https://blkbeard.ai/api/report-spam", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    // Best-effort only; ignore failures.
+  }
+}
+
+function closeTabWithTracking(tabId, knownUrl) {
+  (async () => {
+    try {
+      let url = knownUrl || "";
+      if (!url) {
+        const tab = await chrome.tabs.get(tabId);
+        url = getTabUrl(tab);
+      }
+
+      const host = getHostname(url);
+      if (host && safeDomains.has(host)) {
+        // Domain marked as safe; do not close.
+        return;
+      }
+
+      if (url) {
+        lastClosedTab = {
+          url,
+          domain: host || ""
+        };
+      } else {
+        lastClosedTab = null;
+      }
+
+      await chrome.tabs.remove(tabId);
+    } catch (e) {
+      // Ignore errors (tab may already be gone, etc.).
+    }
+  })();
 }
 
 function getTabUrl(tab) {
@@ -103,7 +244,7 @@ function maybeCloseTabIfRulesMatch(tabId, record) {
 
   if (record.condition2 || record.condition3) {
     // Condition 1 AND (Condition 2 OR Condition 3) -> close.
-    chrome.tabs.remove(tabId);
+    closeTabWithTracking(tabId);
   }
 }
 
@@ -205,7 +346,7 @@ async function handlePageScanResult(message, sender) {
   maybeCloseTabIfRulesMatch(tabId, record);
 }
 
-// Listen for user gestures reported from content scripts.
+// Listen for user gestures and other signals reported from content scripts and popup.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.type) {
     return;
@@ -228,6 +369,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         overlayScores.set(tabId, incoming);
       }
     }
+  } else if (message.type === "hard-overlay-click") {
+    const tabId = sender?.tab?.id;
+    if (typeof tabId === "number") {
+      hardOverlayClicks.set(tabId, Date.now());
+    }
+  } else if (message.type === "mark-spam") {
+    const { domain, url } = message;
+    if (!domain || !url) {
+      return;
+    }
+
+    const normalizedDomain = domain.toLowerCase();
+    // Remove from safe list if present; spam marking overrides safe.
+    safeDomains.delete(normalizedDomain);
+    blockedDomains.add(normalizedDomain);
+    persistBlockedDomains();
+    persistSafeDomains();
+
+    const payload = {
+      domain: normalizedDomain,
+      url,
+      timestamp: Date.now(),
+      userId: installationId || null
+    };
+
+    void reportSpamToBackend(payload);
+  } else if (message.type === "false-positive") {
+    if (!lastClosedTab || !lastClosedTab.url) {
+      return;
+    }
+
+    const domain = lastClosedTab.domain || getHostname(lastClosedTab.url);
+    if (!domain) {
+      return;
+    }
+
+    const normalizedDomain = domain.toLowerCase();
+    // Safe list overrides block list for future auto-close decisions.
+    blockedDomains.delete(normalizedDomain);
+    safeDomains.add(normalizedDomain);
+    persistBlockedDomains();
+    persistSafeDomains();
+
+    chrome.tabs.create({ url: lastClosedTab.url });
   }
 });
 
@@ -264,17 +449,53 @@ chrome.tabs.onCreated.addListener((tab) => {
     return;
   }
 
+  const initialUrl = getTabUrl(tab);
+
+  // If this tab's domain has been explicitly marked as spam, and it was
+  // opened from a click (recent user gesture), close it immediately,
+  // regardless of other conditions.
+  const host = getHostname(initialUrl);
+  if (
+    host &&
+    blockedDomains.has(host) &&
+    typeof tab.openerTabId === "number" &&
+    Date.now() - lastUserGesture < 1000
+  ) {
+    closeTabWithTracking(tab.id, initialUrl);
+    return;
+  }
+
+  // Same-site whitelist: if the new tab's host matches its opener's host,
+  // never auto-close it, regardless of other conditions.
+  if (typeof tab.openerTabId === "number") {
+    const openerUrl = latestTabUrls.get(tab.openerTabId) || "";
+    if (areSameSiteUrls(initialUrl, openerUrl)) {
+      sameSiteAllowedTabs.set(tab.id, true);
+      return;
+    }
+  }
+
+  // If this tab was opened immediately after a click on a very suspicious
+  // full-screen, nearly transparent overlay in the opener tab, close it
+  // unconditionally, regardless of URL or content.
+  if (typeof tab.openerTabId === "number") {
+    const ts = hardOverlayClicks.get(tab.openerTabId);
+    if (ts && Date.now() - ts < 1500) {
+      closeTabWithTracking(tab.id, initialUrl);
+      return;
+    }
+  }
+
   const condition1 = evaluateCondition1(tab);
   if (!condition1) {
     return;
   }
 
-  const initialUrl = getTabUrl(tab);
   const condition3 = urlHasAffiliateParams(initialUrl);
 
   // If Condition 1 AND Condition 3 are already true at creation, close immediately.
   if (condition3) {
-    chrome.tabs.remove(tab.id);
+    closeTabWithTracking(tab.id, initialUrl);
     return;
   }
 
@@ -298,6 +519,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const record = suspiciousTabs.get(tabId);
   if (!record) {
     return;
+  }
+
+  if (changeInfo.url) {
+    latestTabUrls.set(tabId, changeInfo.url);
   }
 
   // Re-check Condition 2 (URL-only wordlists) and Condition 3 when URL changes.
@@ -349,6 +574,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   suspiciousTabs.delete(tabId);
   overlayScores.delete(tabId);
   trustedTypedNavigation.delete(tabId);
+  hardOverlayClicks.delete(tabId);
+  latestTabUrls.delete(tabId);
+  sameSiteAllowedTabs.delete(tabId);
 });
 
 

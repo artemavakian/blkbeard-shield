@@ -3,6 +3,8 @@
 const toggleButton = document.getElementById("toggleButton");
 const buttonText = document.getElementById("buttonText");
 const statusText = document.getElementById("statusText");
+const markSpamButton = document.getElementById("markSpamButton");
+const falsePositiveButton = document.getElementById("falsePositiveButton");
 
 // Load the current enabled state from storage
 async function loadState() {
@@ -34,6 +36,43 @@ toggleButton.addEventListener("click", async () => {
   // Notify the background script of the state change
   chrome.runtime.sendMessage({ type: "toggle-enabled", enabled: newState });
 });
+
+// Mark current site as spam
+if (markSpamButton) {
+  markSpamButton.addEventListener("click", async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs && tabs[0];
+      if (!tab || !tab.url) {
+        return;
+      }
+      let domain = "";
+      try {
+        domain = new URL(tab.url).hostname;
+      } catch {
+        domain = "";
+      }
+      if (!domain) return;
+
+      chrome.runtime.sendMessage({
+        type: "mark-spam",
+        domain,
+        url: tab.url
+      });
+    } catch (e) {
+      // Ignore errors.
+    }
+  });
+}
+
+// Handle False Positive: reopen last auto-closed tab and mark its domain as safe.
+if (falsePositiveButton) {
+  falsePositiveButton.addEventListener("click", () => {
+    chrome.runtime.sendMessage({
+      type: "false-positive"
+    });
+  });
+}
 
 // Initialize the popup
 loadState();
