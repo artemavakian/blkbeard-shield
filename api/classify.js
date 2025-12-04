@@ -1,5 +1,5 @@
 // Vercel serverless function for page classification.
-// Endpoint: https://blkbeard.ai/api/classify
+// Endpoint: https://api.blkbeard.ai/api/classify
 //
 // Expects a JSON POST body:
 // {
@@ -59,7 +59,7 @@ module.exports = async (req, res) => {
     const safeMeta = (metaDescription || "").toString().slice(0, 512);
 
     const prompt = `
-You are a strict content classifier that labels web pages as potentially harmful or benign.
+You are a strict content classifier that labels web pages as potentially harmful or high-risk vs benign.
 
 Given:
 - URL: "${safeUrl}"
@@ -69,7 +69,8 @@ Given:
 
 Decide whether the page is clearly any of the following:
 - gambling / casino / betting
-- adult / XXX / pornographic or explicit cam/chat
+- adult / XXX / pornographic OR sexually-oriented chat/cam services
+  (examples: adult chat, sex chat, private chat, cam chat, random video chat rooms with sexual or dating intent)
 - fake software / scareware / bogus utilities / fake downloads
 - generic scam / prize / "you won" / misleading offer
 - age/consent gate related to adult or explicit content

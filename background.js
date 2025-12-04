@@ -151,7 +151,7 @@ function areSameSiteUrls(urlA, urlB) {
 
 async function reportSpamToBackend(payload) {
   try {
-    await fetch("https://blkbeard.ai/api/report-spam", {
+    await fetch("https://api.blkbeard.ai/api/report-spam", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -250,7 +250,7 @@ function maybeCloseTabIfRulesMatch(tabId, record) {
 
 async function classifyWithBackend(payload) {
   try {
-    const response = await fetch("https://blkbeard.ai/api/classify", {
+    const response = await fetch("https://api.blkbeard.ai/api/classify", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -375,6 +375,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       hardOverlayClicks.set(tabId, Date.now());
     }
   } else if (message.type === "mark-spam") {
+    // When extension is disabled, ignore manual spam marking.
+    if (!extensionEnabled) {
+      return;
+    }
+
     const { domain, url } = message;
     if (!domain || !url) {
       return;
@@ -396,6 +401,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     void reportSpamToBackend(payload);
   } else if (message.type === "false-positive") {
+    // When extension is disabled, ignore false positive actions.
+    if (!extensionEnabled) {
+      return;
+    }
+
     if (!lastClosedTab || !lastClosedTab.url) {
       return;
     }

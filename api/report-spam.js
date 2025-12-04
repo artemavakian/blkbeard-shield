@@ -1,5 +1,5 @@
 // Vercel serverless function to record spam reports in Supabase.
-// Endpoint: https://blkbeard.ai/api/report-spam
+// Endpoint: https://api.blkbeard.ai/api/report-spam
 //
 // Expects a JSON POST body:
 // {
