@@ -8,18 +8,59 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   width: 135px; /* 25% thinner than 180px */
   padding: 0;
-  min-height: 144px; /* 60% shorter than 360px */
-  background-image: url("background.png");
-  background-size: cover;        /* stretch to cover the entire popup */
-  background-position: center;
-  background-repeat: no-repeat;
+  min-height: 173px; /* 20% taller than 144px */
+  background: #ffffff;
   border-radius: 16px;
   overflow: hidden;
+  position: relative;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px; /* adjust if you want the border thicker/thinner */
+  background-image: url("border.png");
+  background-size: 100% 100%; /* stretch to touch top and bottom */
+  background-repeat: no-repeat;
+}
+
+body::before {
+  left: 0;
+}
+
+body::after {
+  right: 0;
 }
 
 .container {
   padding: 10px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+#initialScreen {
+  display: none;
+  margin-top: 65px; /* moved down by 65px from the top */
+}
+
+.initial-logo {
+  display: block;
+  max-width: 60px;
+  height: auto;
+  margin: 0 auto 8px;
+}
+
+#mainMenu {
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
 h1 {
@@ -49,22 +90,11 @@ h1 {
   transition: all 0.2s ease;
   width: 100%;
   display: block;
-  margin-bottom: 8px;
 }
 
 .toggle-btn:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(132, 123, 180, 1),
-    rgba(158, 124, 184, 1),
-    rgba(181, 125, 188, 1),
-    rgba(206, 130, 192, 1),
-    rgba(223, 139, 173, 1),
-    rgba(223, 139, 173, 1),
-    rgba(245, 163, 113, 1),
-    rgba(245, 163, 113, 1),
-    rgba(245, 163, 113, 1)
-  );
+  background: #b3b3b3; /* darker grey on hover */
+  color: #000000;
   border-color: #000000;
 }
 
@@ -79,7 +109,6 @@ h1 {
 .tooltip-wrapper {
   position: relative;
   width: 100%;
-  margin-bottom: 16px;
 }
 
 .tooltip {
@@ -121,7 +150,6 @@ h1 {
   transition: all 0.2s ease;
   width: 100%;
   display: block;
-  margin-bottom: 8px;
 }
 
 .secondary-btn:hover {
@@ -133,6 +161,123 @@ h1 {
 .secondary-btn:active {
   transform: translateY(0);
   background: #ffffff;
+  color: #000000;
+}
+
+.start-trial-btn {
+  background: linear-gradient(
+    180deg,
+    rgba(132, 123, 180, 1),
+    rgba(158, 124, 184, 1),
+    rgba(181, 125, 188, 1),
+    rgba(206, 130, 192, 1),
+    rgba(223, 139, 173, 1),
+    rgba(223, 139, 173, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1)
+  );
+  color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  display: block;
+}
+
+.start-trial-btn:hover {
+  background: #000000;
+  border-color: #000000;
+}
+
+.start-trial-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.start-trial-btn:hover .start-trial-text {
+  background: linear-gradient(
+    180deg,
+    rgba(132, 123, 180, 1),
+    rgba(158, 124, 184, 1),
+    rgba(181, 125, 188, 1),
+    rgba(206, 130, 192, 1),
+    rgba(223, 139, 173, 1),
+    rgba(223, 139, 173, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.pro-btn {
+  background: linear-gradient(
+    180deg,
+    rgba(132, 123, 180, 1),
+    rgba(158, 124, 184, 1),
+    rgba(181, 125, 188, 1),
+    rgba(206, 130, 192, 1),
+    rgba(223, 139, 173, 1),
+    rgba(223, 139, 173, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1)
+  );
+  color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  display: block;
+}
+
+.pro-btn:hover {
+  background: #000000;
+  border-color: #000000;
+}
+
+.pro-text {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pro-btn:hover .pro-text {
+  background: linear-gradient(
+    180deg,
+    rgba(132, 123, 180, 1),
+    rgba(158, 124, 184, 1),
+    rgba(181, 125, 188, 1),
+    rgba(206, 130, 192, 1),
+    rgba(223, 139, 173, 1),
+    rgba(223, 139, 173, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1),
+    rgba(245, 163, 113, 1)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.trial-text {
+  margin: 0;
+  margin-top: 2px;
+  font-size: 10px; /* ~20% smaller than 12px button text */
+  font-weight: 500;
+  text-align: center;
   color: #000000;
 }
 

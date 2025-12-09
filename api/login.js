@@ -1,4 +1,14 @@
-const { DEVICE_LIMIT, PLAN_TITLE, rateLimit, getUser, saveUser, computeTrialDaysRemaining, createJwt } = require("./_shared");
+const {
+  DEVICE_LIMIT,
+  PLAN_TITLE,
+  rateLimit,
+  getUser,
+  saveUser,
+  getDevice,
+  saveDevice,
+  computeTrialDaysRemaining,
+  createJwt
+} = require("./_shared");
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*"); // TODO: restrict in production
@@ -41,6 +51,16 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Enforce one trial per device: if this device has already been used
+    // with a different email, do not allow starting a new trial.
+    const existingDeviceRecord = await getDevice(deviceId);
+    if (existingDeviceRecord && existingDeviceRecord.email !== email) {
+      res.statusCode = 403;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "device_trial_used" }));
+      return;
+    }
+
     let user = await getUser(email);
     const nowIso = new Date().toISOString();
 
@@ -54,6 +74,9 @@ module.exports = async (req, res) => {
         plan_title: PLAN_TITLE,
         last_payment_at: null
       };
+
+      // First time this device is seen and first trial for this email.
+      await saveDevice({ id: deviceId, email, first_seen_at: nowIso });
     } else {
       if (!Array.isArray(user.devices)) {
         user.devices = [];
@@ -68,6 +91,9 @@ module.exports = async (req, res) => {
           return;
         }
         user.devices.push({ id: deviceId, first_seen_at: nowIso });
+
+        // New device being associated with this email; record it.
+        await saveDevice({ id: deviceId, email, first_seen_at: nowIso });
       }
 
       if (!user.trial_started_at && (!user.subscription_status || user.subscription_status === "none")) {

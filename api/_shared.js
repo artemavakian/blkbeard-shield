@@ -59,6 +59,10 @@ const memoryStore = {};
 const hasKvConfig =
   !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN;
 
+function deviceKey(deviceId) {
+  return `device:${deviceId}`;
+}
+
 async function getUser(email) {
   if (!email) return null;
   const key = userKey(email);
@@ -89,6 +93,39 @@ async function saveUser(user) {
   } catch (err) {
     console.error("KV set error, falling back to memory store", err);
     memoryStore[key] = user;
+  }
+}
+
+async function getDevice(deviceId) {
+  if (!deviceId) return null;
+  const key = deviceKey(deviceId);
+
+  if (!hasKvConfig) {
+    return memoryStore[key] || null;
+  }
+
+  try {
+    return (await kv.get(key)) || null;
+  } catch (err) {
+    console.error("KV get (device) error, falling back to memory store", err);
+    return memoryStore[key] || null;
+  }
+}
+
+async function saveDevice(record) {
+  if (!record || !record.id) return;
+  const key = deviceKey(record.id);
+
+  if (!hasKvConfig) {
+    memoryStore[key] = record;
+    return;
+  }
+
+  try {
+    await kv.set(key, record);
+  } catch (err) {
+    console.error("KV set (device) error, falling back to memory store", err);
+    memoryStore[key] = record;
   }
 }
 
@@ -127,6 +164,8 @@ module.exports = {
   rateLimit,
   getUser,
   saveUser,
+   getDevice,
+   saveDevice,
   computeTrialDaysRemaining,
   createJwt,
   verifyJwt,

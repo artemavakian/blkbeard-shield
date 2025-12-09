@@ -8,27 +8,44 @@
 </head>
 <body>
   <div class="container">
-    <div class="tooltip-wrapper">
-      <button id="markSpamButton" class="secondary-btn">
-        Mark as Spam
+    <div id="initialScreen">
+      <img src="blkbeardsimple.png" alt="blkbeard" class="initial-logo">
+      <button id="startTrialButton" class="start-trial-btn">
+        <span class="start-trial-text">Start Free Trial</span>
       </button>
-      <div class="tooltip tooltip-mark-spam">
-        Blocks this site and reports it to our system to help enhance the extension’s performance
-      </div>
     </div>
 
-    <div class="tooltip-wrapper">
-      <button id="falsePositiveButton" class="secondary-btn">
-        False Positive
-      </button>
-      <div class="tooltip">
-        Reopen last auto-closed tab and add site to 'safe list'
+    <div id="mainMenu">
+      <div class="tooltip-wrapper">
+        <button id="markSpamButton" class="secondary-btn">
+          Mark as Spam
+        </button>
+        <div class="tooltip tooltip-mark-spam">
+          Blocks this site and reports it to our system to help enhance the extension’s performance
+        </div>
       </div>
-    </div>
 
-    <button id="toggleButton" class="toggle-btn">
-      <span id="buttonText">Turn Off</span>
-    </button>
+      <div class="tooltip-wrapper">
+        <button id="falsePositiveButton" class="secondary-btn">
+          False Positive
+        </button>
+        <div class="tooltip">
+          Reopen last auto-closed tab and add site to 'safe list'
+        </div>
+      </div>
+
+      <button id="toggleButton" class="toggle-btn">
+        <span id="buttonText">Turn Off</span>
+      </button>
+
+      <button id="proButton" class="pro-btn">
+        <span class="pro-text">Go Pro $2.99</span>
+      </button>
+
+      <p id="trialText" class="trial-text">
+        Free Trial Expired
+      </p>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>
