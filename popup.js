@@ -2,7 +2,6 @@
 
 const toggleButton = document.getElementById("toggleButton");
 const buttonText = document.getElementById("buttonText");
-const statusText = document.getElementById("statusText");
 const markSpamButton = document.getElementById("markSpamButton");
 const falsePositiveButton = document.getElementById("falsePositiveButton");
 
@@ -17,11 +16,9 @@ function updateUI(enabled) {
   if (enabled) {
     buttonText.textContent = "Turn Off";
     toggleButton.classList.remove("disabled");
-    statusText.innerHTML = 'Extension is <strong>enabled</strong>';
   } else {
     buttonText.textContent = "Turn On";
     toggleButton.classList.add("disabled");
-    statusText.innerHTML = 'Extension is <strong>disabled</strong>';
   }
 }
 

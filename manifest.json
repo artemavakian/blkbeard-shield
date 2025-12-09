@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "blkbeard",
   "version": "1.0.0",
-  "description": "Built to handle high-risk environments.",
+  "description": "The first ad blocker built to handle streaming/high-risk sites.",
   "permissions": ["tabs", "scripting", "activeTab", "storage", "webNavigation"],
   "host_permissions": [
     "<all_urls>",

@@ -30,7 +30,10 @@ const AFFILIATE_PARAM_SUBSTRINGS = [
 
   // Click-tracking parameters commonly used by redirect landers
   "click_id=",
-  "clickid="
+  "clickid=",
+
+  // Known hosting pattern frequently abused for scammy landing pages
+  "web.core.windows.net"
 ];
 
 function normalizeToLower(value) {

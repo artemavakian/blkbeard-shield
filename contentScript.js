@@ -32,6 +32,44 @@ function attachGestureListeners() {
   });
 }
 
+function isHardOverlayElement(element) {
+  if (!(element instanceof Element)) return false;
+
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  const isFixedOrAbsolute =
+    style.position === "fixed" || style.position === "absolute";
+  if (!isFixedOrAbsolute || vw <= 0 || vh <= 0) {
+    return false;
+  }
+
+  const coversWidth = rect.width >= vw * 0.8;
+  const coversHeight = rect.height >= vh * 0.8;
+  const nearTopLeft = rect.top <= 5 && rect.left <= 5;
+  if (!(coversWidth && coversHeight && nearTopLeft)) {
+    return false;
+  }
+
+  const zIndexValue = parseInt(style.zIndex || "0", 10);
+  if (Number.isNaN(zIndexValue) || zIndexValue <= 9999) {
+    return false;
+  }
+
+  const opacity = parseFloat(style.opacity || "1");
+  if (!(opacity >= 0 && opacity <= 0.1)) {
+    return false;
+  }
+
+  if (style.pointerEvents === "none") {
+    return false;
+  }
+
+  return true;
+}
+
 function computeOverlayScore(element) {
   if (!element || element.nodeType !== Node.ELEMENT_NODE) {
     return 0;
@@ -123,6 +161,24 @@ function startOverlayObserver() {
   });
 }
 
+function handleOverlayClick(event) {
+  let node = event.target;
+  while (node && node !== document.body) {
+    if (node instanceof Element && isHardOverlayElement(node)) {
+      try {
+        chrome.runtime.sendMessage({
+          type: "hard-overlay-click",
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        // Ignore failures.
+      }
+      break;
+    }
+    node = node.parentElement;
+  }
+}
+
 function extractPageInfo() {
   let title = "";
   let metaDescription = "";
@@ -187,5 +243,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Initialize immediately on script load.
 attachGestureListeners();
 startOverlayObserver();
+window.addEventListener("click", handleOverlayClick, true);
 
 
