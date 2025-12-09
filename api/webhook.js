@@ -10,12 +10,6 @@ function setCors(res) {
 module.exports = async (req, res) => {
   setCors(res);
 
-  if (req.method === "OPTIONS") {
-    res.statusCode = 200;
-    res.end();
-    return;
-  }
-
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.setHeader("Content-Type", "application/json");
