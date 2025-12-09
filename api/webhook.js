@@ -19,7 +19,17 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+    let body = {};
+    if (typeof req.json === "function") {
+      // Next.js / modern runtimes: use req.json()
+      body = (await req.json()) || {};
+    } else if (typeof req.body === "string") {
+      body = JSON.parse(req.body || "{}");
+    } else if (typeof req.body === "object" && req.body !== null) {
+      body = req.body;
+    } else {
+      body = {};
+    }
 
     // Freemius docs define exactly how to compute the signature. Here we assume:
     // header: 'x-freemius-signature', algorithm: HMAC-SHA256 over the raw JSON body.
