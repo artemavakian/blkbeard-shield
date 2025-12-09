@@ -54,14 +54,42 @@ function userKey(email) {
   return `user:${email.toLowerCase()}`;
 }
 
+// Fallback in-memory store if Vercel KV is not configured or fails.
+const memoryStore = {};
+const hasKvConfig =
+  !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN;
+
 async function getUser(email) {
   if (!email) return null;
-  return (await kv.get(userKey(email))) || null;
+  const key = userKey(email);
+
+  if (!hasKvConfig) {
+    return memoryStore[key] || null;
+  }
+
+  try {
+    return (await kv.get(key)) || null;
+  } catch (err) {
+    console.error("KV get error, falling back to memory store", err);
+    return memoryStore[key] || null;
+  }
 }
 
 async function saveUser(user) {
   if (!user || !user.email) return;
-  await kv.set(userKey(user.email), user);
+  const key = userKey(user.email);
+
+  if (!hasKvConfig) {
+    memoryStore[key] = user;
+    return;
+  }
+
+  try {
+    await kv.set(key, user);
+  } catch (err) {
+    console.error("KV set error, falling back to memory store", err);
+    memoryStore[key] = user;
+  }
 }
 
 function computeTrialDaysRemaining(trialStartedAtIso) {
