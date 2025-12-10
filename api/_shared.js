@@ -136,7 +136,7 @@ function computeTrialDaysRemaining(trialStartedAtIso) {
   const now = new Date();
   const diffMs = now.getTime() - startedAt.getTime();
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const remaining = 5 - days;
+  const remaining = 7 - days;
   return remaining > 0 ? remaining : 0;
 }
 
