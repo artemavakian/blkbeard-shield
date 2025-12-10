@@ -183,12 +183,9 @@ async function blkCheckStatus() {
 }
 
 function buildFreemiusCheckoutUrl(email) {
-  const params = new URLSearchParams({
-    product_id: String(FREEMIUS_PRODUCT_ID),
-    plan_title: PLAN_TITLE,
-    email
-  });
-  return `https://checkout.freemius.com/checkout?${params.toString()}`;
+  const base = "https://checkout.freemius.com/product/22220/plan/37172/";
+  if (!email) return base;
+  return `${base}?email=${encodeURIComponent(email)}`;
 }
 
 function openSubscribePage(email) {
