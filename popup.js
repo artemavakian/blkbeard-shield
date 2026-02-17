@@ -14,6 +14,10 @@ const trialText = document.getElementById("trialText");
 const initialScreen = document.getElementById("initialScreen");
 const mainMenu = document.getElementById("mainMenu");
 const startTrialButton = document.getElementById("startTrialButton");
+const emailForm = document.getElementById("emailForm");
+const emailInput = document.getElementById("emailInput");
+const submitEmailButton = document.getElementById("submitEmailButton");
+const trialError = document.getElementById("trialError");
 
 let currentStatus = null;
 let currentEmail = null;
@@ -128,24 +132,42 @@ async function blkSetToken(token) {
   });
 }
 
+function showTrialError(msg) {
+  if (trialError) {
+    trialError.textContent = msg;
+  }
+}
+
 async function blkLoginOrStartTrial(email) {
   const deviceId = await getOrCreateDeviceId();
 
-  const resp = await fetch(`${BASE_URL}/api/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, device_id: deviceId })
-  });
+  let resp;
+  try {
+    resp = await fetch(`${BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, device_id: deviceId })
+    });
+  } catch (err) {
+    showTrialError("Network error. Please try again.");
+    return null;
+  }
 
-  const data = await resp.json();
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    showTrialError("Unexpected response. Please try again.");
+    return null;
+  }
 
   if (!resp.ok) {
     if (data.error === "device_limit_exceeded") {
-      alert("This account is already in use on too many devices.");
+      showTrialError("Account in use on too many devices.");
     } else if (data.error === "device_trial_used") {
-      alert("Free trial has already been used on this device.");
+      showTrialError("Free trial already used on this device.");
     } else {
-      alert("Login failed. Please try again.");
+      showTrialError("Login failed. Please try again.");
     }
     return null;
   }
@@ -253,30 +275,57 @@ if (proButton && proText) {
   });
 }
 
-if (startTrialButton) {
-  startTrialButton.addEventListener("click", async () => {
-    let email = currentEmail;
-    if (!email) {
-      email = prompt("Enter your email to start your trial:");
-      if (!email) return;
-      email = email.trim();
-    }
+async function handleTrialSubmit(email) {
+  if (!email) return;
+  email = email.trim();
+  if (!email) {
+    showTrialError("Please enter a valid email.");
+    return;
+  }
 
-    const loginResult = await blkLoginOrStartTrial(email);
-    if (!loginResult) {
+  showTrialError("");
+
+  const loginResult = await blkLoginOrStartTrial(email);
+  if (!loginResult) {
+    return;
+  }
+
+  const status = (await blkCheckStatus()) || {
+    email,
+    subscription_status: loginResult.subscription_status || "trial",
+    trial_days_remaining: loginResult.trial_days_remaining ?? 0,
+    devices: [],
+    devices_count: 0
+  };
+
+  showMainMenu();
+  updateStatusUI(status);
+}
+
+if (startTrialButton) {
+  startTrialButton.addEventListener("click", () => {
+    if (currentEmail) {
+      handleTrialSubmit(currentEmail);
       return;
     }
+    startTrialButton.style.display = "none";
+    if (emailForm) emailForm.style.display = "block";
+    if (emailInput) emailInput.focus();
+  });
+}
 
-    const status = (await blkCheckStatus()) || {
-      email,
-      subscription_status: loginResult.subscription_status || "trial",
-      trial_days_remaining: loginResult.trial_days_remaining ?? 0,
-      devices: [],
-      devices_count: 0
-    };
+if (submitEmailButton) {
+  submitEmailButton.addEventListener("click", () => {
+    const email = emailInput ? emailInput.value : "";
+    handleTrialSubmit(email);
+  });
+}
 
-    showMainMenu();
-    updateStatusUI(status);
+if (emailInput) {
+  emailInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      handleTrialSubmit(emailInput.value);
+    }
   });
 }
 

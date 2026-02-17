@@ -3,7 +3,7 @@
   "name": "blkbeard",
   "version": "1.0.1",
   "description": "The first ad blocker built to handle streaming/high-risk sites.",
-  "permissions": ["tabs", "scripting", "activeTab", "storage", "webNavigation"],
+  "permissions": ["tabs", "storage", "webNavigation"],
   "host_permissions": [
     "<all_urls>",
     "https://api.blkbeard.ai/*"
